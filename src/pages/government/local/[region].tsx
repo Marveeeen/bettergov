@@ -13,29 +13,95 @@ import {
 import SEO from '../../../components/SEO';
 import { getLocalGovSEOData } from '../../../utils/seo-data';
 
+type RegionData = {
+  region: string;
+  cities?: Array<{
+    city: string;
+    mayor: {
+      name: string;
+      contact?: string;
+    };
+    vice_mayor: {
+      name: string;
+      contact?: string;
+    };
+  }>;
+  municipalities?: Array<{
+    municipality: string;
+    mayor: {
+      name: string;
+    };
+    vice_mayor: {
+      name: string;
+    };
+  }>;
+  slug: string;
+  provinces?: Array<{
+    province: string;
+    cities?: Array<{
+      city: string;
+      mayor: {
+        name: string;
+        contact?: string;
+      };
+      vice_mayor: {
+        name: string;
+        contact?: string;
+      };
+      zip_code?: string;
+    }>;
+    municipalities?: Array<{
+      municipality: string;
+      zip_code?: string;
+      mayor: {
+        name: string;
+        contact?: string;
+        email?: string;
+      };
+      vice_mayor?: {
+        name: string;
+        contact?: string;
+        email?: string;
+      };
+    }>;
+    slug?: string;
+  }>;
+};
+
+type Units = {
+  city: string;
+  mayor: {
+    name: string;
+    contact?: string;
+    email?: string;
+  };
+  vice_mayor?: {
+    name: string;
+    contact?: string;
+    email?: string;
+  };
+  type: 'City' | 'Municipality';
+  province: string | null;
+};
+
 export default function RegionalLGUPage() {
   const { region } = useParams<{ region: string }>();
   const [searchTerm, setSearchTerm] = useState('');
 
   // Find the region data
   const regionData = useMemo(() => {
-    return lguData.find(r => r.slug === region);
+    return lguData.find(r => r.slug === region) as RegionData;
   }, [region]);
 
   // Flatten all cities and municipalities from all provinces
   const allLocalGovUnits = useMemo(() => {
     if (!regionData) return [];
 
-    const units: Array<{
-      name?: string;
-      type: string;
-      province: string | null;
-      [key: string]: unknown;
-    }> = [];
+    const units: Units[] = [];
 
     // Add direct cities (if any)
     if (regionData.cities) {
-      regionData.cities.forEach((city: Record<string, unknown>) => {
+      regionData.cities.forEach(city => {
         units.push({
           ...city,
           type: 'City',
@@ -46,45 +112,41 @@ export default function RegionalLGUPage() {
 
     // Add direct municipalities (if any)
     if (regionData.municipalities) {
-      regionData.municipalities.forEach(
-        (municipality: Record<string, unknown>) => {
-          units.push({
-            city: municipality.municipality,
-            mayor: municipality.mayor,
-            vice_mayor: municipality.vice_mayor,
-            type: 'Municipality',
-            province: null, // These are regional municipalities, not provincial
-          });
-        }
-      );
+      regionData.municipalities.forEach(municipality => {
+        units.push({
+          city: municipality.municipality,
+          mayor: municipality.mayor,
+          vice_mayor: municipality.vice_mayor,
+          type: 'Municipality',
+          province: null, // These are regional municipalities, not provincial
+        });
+      });
     }
 
     // Add cities and municipalities from provinces (if any)
     if (regionData.provinces) {
-      regionData.provinces.forEach((province: Record<string, unknown>) => {
+      regionData.provinces.forEach(province => {
         // Add cities from this province
         if (province.cities) {
-          province.cities.forEach((city: Record<string, unknown>) => {
+          province.cities.forEach(city => {
             units.push({
               ...city,
               type: 'City',
-              province: province.province,
+              province: province.province as string,
             });
           });
         }
         // Add municipalities from this province
         if (province.municipalities) {
-          province.municipalities.forEach(
-            (municipality: Record<string, unknown>) => {
-              units.push({
-                city: municipality.municipality,
-                mayor: municipality.mayor,
-                vice_mayor: municipality.vice_mayor,
-                type: 'Municipality',
-                province: province.province,
-              });
-            }
-          );
+          province.municipalities.forEach(municipality => {
+            units.push({
+              city: municipality.municipality,
+              mayor: municipality.mayor,
+              vice_mayor: municipality.vice_mayor,
+              type: 'Municipality',
+              province: province.province as string,
+            });
+          });
         }
       });
     }
@@ -97,12 +159,7 @@ export default function RegionalLGUPage() {
     if (!searchTerm) return allLocalGovUnits;
 
     return allLocalGovUnits.filter(
-      (unit: {
-        city?: string;
-        mayor?: { name?: string };
-        vice_mayor?: { name?: string };
-        province?: string;
-      }) =>
+      unit =>
         unit.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
         unit.mayor?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         unit.vice_mayor?.name

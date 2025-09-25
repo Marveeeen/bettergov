@@ -6,6 +6,7 @@ import StandardSidebar from '../../../../components/ui/StandardSidebar';
 
 interface Department {
   office_name: string;
+  slug: string;
   address?: string;
   trunkline?: string;
   website?: string;
